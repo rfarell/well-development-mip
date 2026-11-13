@@ -298,11 +298,11 @@ def render(data, output_prefix):
         ax.set_xlabel("Risk tolerance (USD million)", labelpad=8)
     axes[2].set_xlim(-0.45, 1.45)
     axes[2].set_xticks([0, 1], ["Base", "Revenue\n× 0.75"])
-    axes[2].set_xlabel("Paired margin settings", labelpad=7)
+    axes[2].set_xlabel("Margin setting", labelpad=7)
     axes[0].set_ylabel("Difference (% of risk-neutral\nplan expected NPV)", labelpad=8)
-    titles = ["(a) Optimization", "(b) Risk modeling", "(c) Advance planning"]
+    titles = ["(a) Optimization", "(b) Risk modeling", "(c) Anticipating revision"]
     subtitles = ["Rule's first-year CE gap", "Risk-averse plan's CE gain",
-                 "Expected-NPV gain (RN-VSS)"]
+                 "Expected-NPV gain"]
     for ax, title, subtitle in zip(axes, titles, subtitles):
         left = ax.get_position().x0
         fig.text(left, 0.9425, title, weight="bold", fontsize=9, va="top")
@@ -310,7 +310,7 @@ def render(data, output_prefix):
     handles = [Line2D([], [], color=ink, marker="o", linestyle="none", markersize=4),
                Line2D([], [], color=residual_color, marker="s", linestyle="none",
                       markerfacecolor="white", markersize=4)]
-    axes[1].legend(handles, ["Over risk-neutral plan", "Residual after one tilt"], frameon=False,
+    axes[1].legend(handles, ["Over risk-neutral plan", "Over one re-solve"], frameon=False,
                    loc="upper right", bbox_to_anchor=(1.1, 1.10),
                    handletextpad=0.4, labelspacing=0.5, borderpad=0)
     axes[0].legend(handles, ["CE-tuned rule's first year", "One later-drilling rule"], frameon=False,
@@ -328,7 +328,7 @@ def render(data, output_prefix):
     pdf = output_prefix.with_suffix(".pdf")
     png = output_prefix.with_suffix(".png")
     fig.savefig(pdf, facecolor="white", metadata={
-        "Title": "Paired values of optimization, risk modeling and advance planning",
+        "Title": "Paired values of optimization, risk modeling and anticipating later revision",
         "Creator": "src/model/fig_headline.py", "CreationDate": None, "ModDate": None})
     fig.savefig(png, dpi=300, facecolor="white")
     plt.close(fig)

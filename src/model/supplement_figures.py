@@ -94,7 +94,7 @@ def fig_regime_map(plt, sweeps, runs, path):
             ax.plot([r["rn_lam_sigma"] for r in rows], [100.0 * r[k] / abs(r["rn_enpv"]) for r in rows], "-o", color=f"C{i % 10}",
                     lw=1.2, ms=3.5, label=lab)
     if B:
-        kw = dict(marker="D", s=18, facecolors="none", edgecolors="k", linewidths=0.8, zorder=3, label=r"benchmark (instance, $\rho$)")
+        kw = dict(marker="D", s=18, facecolors="none", edgecolors="k", linewidths=0.8, zorder=3, label=r"stress cases (area, $\rho$)")
         xb = [r["beck"]["lam_sigma_rn"] for r in B]
         axes[0].scatter(xb, [r["beck"]["ce_gain_pct"] for r in B], **kw)
         axes[1].scatter(xb, [r["beck"]["enpv_cost_pct"] for r in B], **kw)
@@ -102,7 +102,7 @@ def fig_regime_map(plt, sweeps, runs, path):
         if L:
             axes[2].scatter([r["beck"]["lam_sigma_rn"] for r in L],
                             [100.0 * r["ladder"]["value_of_recourse"] / abs(r["beck"]["enpv_rn"]) for r in L], **kw)
-    axes[0].axhline(BAND_PCT, color="0.45", ls="--", lw=0.8, label=f"Beck's {BAND_PCT:g}% band (registered primary)")
+    axes[0].axhline(BAND_PCT, color="0.45", ls="--", lw=0.8, label=f"threshold, {BAND_PCT:g}% of $E(\\mathbf{{z}}_N)$")
     for ax, (_, title) in zip(axes, panels):
         ax.set_xscale("log")
         ax.axhline(0.0, color="0.75", lw=0.6, zorder=0)
@@ -234,7 +234,7 @@ def fig_deck_curve(plt, runs, path):
     handles += [Line2D([], [], color="0.3", ls="--", lw=0.8, label="best deck-family member"),
                 Line2D([], [], color="0.3", marker="*", ls="", ms=7, label="best deck (CE-tuned)"),
                 Line2D([], [], color="0.3", marker="x", ls="", ms=6, mew=1.3, label="rank-and-fill rule at its deck"),
-                Line2D([], [], color="0.4", ls=":", lw=0.9, label=f"primary band ($-${BAND_PCT:g}% of $E(\\mathbf{{z}}_N)$)"),
+                Line2D([], [], color="0.4", ls=":", lw=0.9, label=f"threshold ($-${BAND_PCT:g}% of $E(\\mathbf{{z}}_N)$)"),
                 Line2D([], [], color="0.55", ls="-.", lw=0.7, label="strip (deck 1)")]
     ncol = 3
     fig.legend(handles=handles, loc="lower center", ncol=ncol, frameon=False)

@@ -86,7 +86,8 @@ The runs in the paper used 32 solver threads on one TACC Vista node (`GRB_THREAD
 
 The paper's NPV-tuned rule and CE-tuned rule are `heur_ev` and `heur_ce` in the run files, and `practice` and
 `oracle` in the rule-check files and in some stored labels. The CE-tuned deck is `rn_deck`; the practice deck is
-the 0.9 entry of its stored curve. The tilted MIP after one and two iterations is `rn_tilt1` and `rn_tilt2`.
+the 0.9 entry of its stored curve. The re-solve with adjusted scenario probabilities (the tilted MIP) after one and two iterations is `rn_tilt1` and
+`rn_tilt2`. The shortcut plans (the supplement's deck family) are `rn_deck`, `rn_tilt1`, and `rn_tilt2`.
 
 ## License
 

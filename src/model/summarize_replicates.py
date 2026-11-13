@@ -52,6 +52,7 @@ ROWS_MAIN = [
     (r"\quad with the type curve 15\% low (plans as planned)", "vopt_truth_low", False),
     (r"\quad with the type curve 15\% high", "vopt_truth_high", False),
     ("first-year gap of the CE-tuned rule", "fs_gap_ce", True),
+    (r"\quad risk-averse plan over the CE-tuned rule's complete plan (added after the planned comparisons)", "plan_gap_ce", False),
     (r"risk-averse plan over the risk-neutral plan, $\mathrm{CE}(z_A)-\mathrm{CE}(z_N)$", "ce_gain", False),
     (r"\quad expected NPV given up (Beck's cost)", "enpv_cost", False),
     (r"\quad residual over the practice deck 0.9", "gain_deck_practice", False),
@@ -113,6 +114,9 @@ def quantities(r):
     q["ce_program"] = ce("ce") - q["ce0"]                                   # CE the program adds
     q["premium_ratio"] = ((E - ce("rn")) - (q["enpv0"] - q["ce0"])) / q["program_value"] if np.isfinite(q["program_value"]) and q["program_value"] > 0 else np.nan
     q["strip_below_empty"] = bool(np.isfinite(q["ce0"]) and ce("rn") < q["ce0"])
+    q["ce_rn_share"] = 100.0 * ce("rn") / abs(E)                           # the firm's certainty equivalent of z_N, % of E(z_N)
+    q["rp_rn_share"] = 100.0 * (E - ce("rn")) / abs(E)                     # risk premiums of z_N and z_A, % of E(z_N)
+    q["rp_ce_share"] = 100.0 * (enpv("ce") - ce("ce")) / abs(E)
     q["capital"] = get(r, "cap", "capital")
     # value of optimization
     q["vopt"] = enpv("rn") - enpv("heur_ev")
@@ -139,6 +143,7 @@ def quantities(r):
     q["fs_gap_ce"] = lb("ce") - lb("heur_ce+exact_recourse")
     q["fs_gap_ce_lb"] = lb("ce") - ub("heur_ce+exact_recourse")
     q["fs_gap_ce_ub"] = ub("ce") - lb("heur_ce+exact_recourse")
+    q["plan_gap_ce"] = lb("ce") - ce("heur_ce")                            # the CE-tuned rule's complete plan, later years as the rule schedules them
     # risk modeling
     q["ce_gain"] = ce("ce") - ce("rn")
     q["enpv_cost"] = enpv("rn") - enpv("ce")
@@ -150,6 +155,9 @@ def quantities(r):
     q["gain_deck"] = ce("ce") - ce("rn_deck")
     q["gain_tilt1"] = ce("ce") - ce("rn_tilt1")
     q["gain_tilt2"] = ce("ce") - ce("rn_tilt2")
+    q["enpv_cost_tilt1"] = enpv("rn") - enpv("rn_tilt1")                   # expected NPV given up by each tilted plan
+    q["enpv_cost_tilt2"] = enpv("rn") - enpv("rn_tilt2")
+    q["implied_price_tilt1"] = get(r, "methods", "rn_tilt1", "tilt", "implied_price")   # weights recomputed at the one-iteration plan
     curve = {round(c["deck"], 3): c for c in get(r, "methods", "rn_deck", "deck_curve", default=[])}
     q["gain_deck_practice"] = ce("ce") - curve[0.9]["ce"] if 0.9 in curve else np.nan
     famx = [n + "+exact_recourse" for n in ("rn_deck", "rn_tilt2") if n + "+exact_recourse" in m]
@@ -222,7 +230,7 @@ def quantities(r):
         q[key] = truth_dollars(lab, kind)                                   # $M under the perturbed truth
         q[key + "_pv"] = 100.0 * q[key] / q["program_value"] if np.isfinite(q[key]) and q["program_value"] > 0 else np.nan   # share of the base program value
     for k in list(q):
-        if k.startswith(("vopt", "fs_gap", "ce_gain", "enpv_cost", "cost_minus_gain", "gain_", "rn_vss", "flex", "evpi")) and isinstance(q[k], float) and not k.endswith(("_pct", "_pv")):
+        if k.startswith(("vopt", "fs_gap", "plan_gap", "ce_gain", "enpv_cost", "cost_minus_gain", "gain_", "rn_vss", "flex", "evpi")) and isinstance(q[k], float) and not k.endswith(("_pct", "_pv")):
             if k + "_pct" not in q:
                 q[k + "_pct"] = 100.0 * q[k] / abs(E)
             if k + "_pv" not in q:
@@ -284,9 +292,18 @@ def stat(Q, key, pct=True):
 
 def f(x, d=2):
     try:
-        return "--" if x is None or not np.isfinite(float(x)) else f"{float(x):.{d}f}"
+        if x is None or not np.isfinite(float(x)):
+            return "--"
+        s = f"{float(x):.{d}f}"
+        return s.lstrip("-") if float(s) == 0 else s                        # a value that rounds to zero carries no sign
     except (TypeError, ValueError):
         return "--"
+
+
+def fsigned(x, d=2):
+    """Signed change; a value that rounds to zero prints without a sign."""
+    s = f"{float(x):+.{d}f}"
+    return s[1:] if float(s) == 0 else s
 
 
 def cell(s, d=2):
@@ -379,7 +396,7 @@ def tex_main_table(by_rho, stress):
     # the shares of the program value and the descriptive rows go to a companion table (SI) so the main table fits one page
     out += [r"\bottomrule", r"\end{tabular}", r"\end{table}", "",
             r"\begin{table}[tbp]", r"\centering", r"\scriptsize", r"\setlength{\tabcolsep}{3pt}",
-            r"\caption{Replicate study, companion to Table~\ref{tab:rep-main}: the main differences as shares of the program value $E(z_N)-E(\mathbf 0)$ (mean with the 95\% bootstrap interval; last column the range over the sixteen stress-case runs), and the scale, regime and certificate statistics of the instances.}",
+            r"\caption{Base study, companion to Table~\ref{tab:rep-main}: the main differences as shares of the program value $E(z_N)-E(\mathbf 0)$ (mean with the 95\% bootstrap interval; last column the range over the sixteen stress-case runs), and the scale, regime and certificate statistics of the instances.}",
             r"\label{tab:rep-main-extra}", r"\begin{tabular}{>{\raggedright\arraybackslash}p{3.4cm}" + "c" * ncol + "}", r"\toprule", head, r"\midrule"]
     for lab, key in (("risk-neutral plan over the NPV-tuned rule, \\% of program value", "vopt"), ("first-year gap of the CE-tuned rule, \\% of program value", "fs_gap_ce"),
                      (r"$\mathrm{CE}(z_A)-\mathrm{CE}(z_N)$, \% of program value", "ce_gain"), ("residual over the tilted MIP (one iteration), \\% of program value", "gain_tilt1"),
@@ -396,6 +413,7 @@ def tex_main_table(by_rho, stress):
                              ("program value, \\% of $E(z_N)$, mean (min--max)", "program_value_share", 1, "range"), ("annual capital, \\$M", "capital", 1, "mean"),
                              ("first-year gap, \\$M, mean", "fs_gap_ce", 2, "mean"),
                              ("$\\lambda\\sigma_W(z_N)$, mean (min--max)", "lam_sigma_rn", 2, "range"), ("$\\lambda\\sigma_W(\\mathbf 0)$, mean", "lam_sigma0", 2, "mean"),
+                             ("risk premium of $z_N$, $z_A$, \\% of $E(z_N)$", None, 1, "rp"),
                              ("$\\rho/E(z_N)$, $\\rho$/program value, $\\rho$/capital, means", None, 2, "rho"),
                              ("certificate gap, \\%, mean (max)", "gap_pct", 3, "max"), ("solver time, s, median (max)", "t_ce", 0, "medmax"), ("OA rounds, median (max)", "rounds", 0, "medmax")):
         cells = []
@@ -404,6 +422,9 @@ def tex_main_table(by_rho, stress):
             if how == "rho":
                 a, b, c = stat(Q, "rho_over_enpv", pct=False), stat(Q, "rho_over_program", pct=False), stat(Q, "rho_over_capital", pct=False)
                 cells.append(f"{f(a['mean'] if a else np.nan)}, {f(b['mean'] if b else np.nan)}, {f(c['mean'] if c else np.nan)}"); continue
+            if how == "rp":
+                a, b = stat(Q, "rp_rn_share", pct=False), stat(Q, "rp_ce_share", pct=False)
+                cells.append(f"{f(a['mean'] if a else np.nan, d)}, {f(b['mean'] if b else np.nan, d)}"); continue
             s = stat(Q, key, pct=False)
             if s is None:
                 cells.append("--")
@@ -506,7 +527,7 @@ def tex_oat_table(base_Q, rows, rho):
         cells = []
         for k, _ in keys:
             s, d = row["stats"].get(k), row["diff"].get(k)
-            cells.append("--" if s is None else f"{f(s['mean'])}" + (r"\newline " + f"{d['mean']:+.2f}" + r"\newline " + f"({f(d['lo'])}, {f(d['hi'])})" if d else ""))
+            cells.append("--" if s is None else f"{f(s['mean'])}" + (r"\newline " + f"{fsigned(d['mean'])}" + r"\newline " + f"({f(d['lo'])}, {f(d['hi'])})" if d else ""))
         out.append(KNOB_TEX.get(row["knob"], row["knob"]) + f" & {row['value']:g} & " + f(row["lam_sigma"]["mean"] if row["lam_sigma"] else np.nan) + " & " + " & ".join(cells) + r" \\")
     out += [r"\bottomrule", r"\end{tabular}", r"\end{table}", ""]
     return "\n".join(out)
@@ -544,7 +565,7 @@ def tex_pm_table(rows, rho, n, tag="pricemarket"):
     for key, lab in PM_KEYS:
         r = rows.get(key, {})
         pm, b, d = r.get("pm"), r.get("base"), r.get("diff")
-        out.append(f"{lab} & {cell(pm)} & {cell(b)} & " + (f"{d['mean']:+.2f} [{f(d['lo'])}, {f(d['hi'])}]" if d else "--") + r" \\")
+        out.append(f"{lab} & {cell(pm)} & {cell(b)} & " + (f"{fsigned(d['mean'])} [{f(d['lo'])}, {f(d['hi'])}]" if d else "--") + r" \\")
     out += [r"\bottomrule", r"\end{tabular}", r"\end{table}", ""]
     return "\n".join(out)
 
@@ -599,6 +620,7 @@ def ndic_macros(Q):
             if key in ("fs_gap_ce", "flex", "evpi", "rn_vss", "vopt_robust") and np.isfinite(q.get(key + "_lb", np.nan)):
                 L.append(f"\\newcommand{{\\ndic{macro_name(key)}Lo{w}}}{{{f(100 * q[key + '_lb'] / abs(q['enpv_rn']))}}}")
                 L.append(f"\\newcommand{{\\ndic{macro_name(key)}Hi{w}}}{{{f(100 * q[key + '_ub'] / abs(q['enpv_rn']))}}}")
+        L.append(f"\\newcommand{{\\ndicPlanGapCe{w}}}{{{f(q.get('plan_gap_ce_pct', np.nan))}}}")
         for key, d in (("lam_sigma_rn", 2), ("lam_sigma0", 2), ("enpv_rn", 1), ("enpv0", 1), ("ce0", 1), ("program_value", 1), ("program_value_share", 1), ("wells_heur", 0), ("wells_rn", 0), ("wells_ce", 0),
                        ("wells0_rn", 0), ("wells0_ce", 0), ("deck", 3), ("gap_pct", 3), ("t_ce", 0), ("rounds", 0), ("pkgs_rn", 0), ("pkgs_ce", 0), ("long_share_rn", 0), ("long_share_ce", 0),
                        ("implied_price", 3), ("implied_theta", 3), ("factor_share_rn", 0), ("factor_share_removed", 0), ("price_share_removed", 0), ("capital", 1), ("rho_over_capital", 2), ("rho_over_program", 2)):
@@ -647,6 +669,12 @@ def write_macros(path, by_rho, oat, base_Q, pm_rows_out=None, stress=None):
             shares = [100 * q["ce_gain"] / q["ce_program"] for q in Q if np.isfinite(q.get("ce_program", np.nan)) and q["ce_program"] > 0]
             put(f"CeProgramShare{w}", 100 * cgr["mean"] / cp["mean"], 0); put(f"CeProgramShareMed{w}", np.median(shares) if shares else np.nan, 0)
         put(f"StripBelowEmpty{w}", sum(q["strip_below_empty"] for q in Q), 0)
+        for key, nm in (("enpv_cost_tilt1", "EnpvCostTiltOne"), ("enpv_cost_tilt2", "EnpvCostTiltTwo")):
+            g = stat(Q, key)
+            if g:
+                put(f"{nm}Mean{w}", g["mean"])
+        put(f"TiltTwoWorse{w}", sum(1 for q in Q if np.isfinite(q.get("gain_tilt1", np.nan)) and np.isfinite(q.get("gain_tilt2", np.nan))
+                                    and q["gain_tilt2"] > q["gain_tilt1"] + 1e-9), 0)
         cmg = stat(Q, "cost_minus_gain")
         if cmg:
             put(f"CostAboveGainMean{w}", cmg["mean"]); put(f"CostAboveGainLo{w}", cmg["lo"]); put(f"CostAboveGainHi{w}", cmg["hi"])
@@ -658,7 +686,8 @@ def write_macros(path, by_rho, oat, base_Q, pm_rows_out=None, stress=None):
                        ("lam_sigma_rn", 2), ("gap_pct", 3), ("t_ce", 0), ("rounds", 0), ("t_total", 0), ("wells_rn", 1), ("wells_ce", 1), ("wells_heur", 1), ("wells0_rn", 1), ("wells0_ce", 1),
                        ("pkgs_rn", 2), ("pkgs_ce", 2), ("long_share_rn", 0), ("long_share_ce", 0), ("four_share_rn", 1), ("four_share_ce", 1), ("four_share_heur", 1), ("long_share_heur", 0), ("deck", 3), ("rule_deck", 2), ("implied_price", 3), ("implied_theta", 3),
                        ("implied_price_zA", 3), ("implied_theta_zA", 3), ("factor_share_rn", 0), ("price_share_rn", 0), ("factor_share_removed", 0), ("price_share_removed", 0),
-                       ("rho_over_enpv", 2), ("rho_over_program", 2), ("rho_over_capital", 2), ("jac_rn", 2)):
+                       ("rho_over_enpv", 2), ("rho_over_program", 2), ("rho_over_capital", 2), ("jac_rn", 2),
+                       ("ce_rn_share", 1), ("rp_rn_share", 1), ("rp_ce_share", 1), ("implied_price_tilt1", 3)):
             s = stat(Q, key, pct=False)
             if s is None:
                 continue
@@ -837,7 +866,7 @@ if __name__ == "__main__":
             cells = []
             for k in ("vopt", "fs_gap_ce", "ce_gain", "gain_family", "rn_vss", "flex", "evpi"):
                 s, d = r["stats"].get(k), r["diff"].get(k)
-                cells += [f(s["mean"]) if s else "--", f"{d['mean']:+.2f} [{f(d['lo'])}, {f(d['hi'])}]" if d else "--"]
+                cells += [f(s["mean"]) if s else "--", f"{fsigned(d['mean'])} [{f(d['lo'])}, {f(d['hi'])}]" if d else "--"]
             md.append(f"| {r['knob']} | {r['value']:g} ({r['level']}) | {r['n']} | {f(r['lam_sigma']['mean']) if r['lam_sigma'] else '--'} | " + " | ".join(cells) + " |")
     pmr = {}
     for tag, V in variants.items():
@@ -846,7 +875,7 @@ if __name__ == "__main__":
         md.append("| quantity | variant | base | paired change [CI] |"); md.append("|---|---|---|---|")
         for key, lab in PM_KEYS:
             r = pmr[tag][key]; d = r.get("diff")
-            md.append(f"| {key} | {cell(r['pm'])} | {cell(r['base'])} | " + (f"{d['mean']:+.2f} [{f(d['lo'])}, {f(d['hi'])}]" if d else "--") + " |")
+            md.append(f"| {key} | {cell(r['pm'])} | {cell(r['base'])} | " + (f"{fsigned(d['mean'])} [{f(d['lo'])}, {f(d['hi'])}]" if d else "--") + " |")
     if ndic:
         md.append("\n## NDIC-calibrated instance\n")
         for q in sorted(ndic, key=lambda q: q["rho"]):

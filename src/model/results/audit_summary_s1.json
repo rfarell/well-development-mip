@@ -1,0 +1,68 @@
+{
+ "stats": {
+  "files": 243,
+  "runs": 239,
+  "brackets": 2708,
+  "rows_with_a_cross_check": 1811,
+  "cross_pairs": 6962,
+  "like_for_like_runs": 71,
+  "refuted": 5,
+  "refuted_cross_solve": 5,
+  "refuted_within_solve": 0,
+  "refuted_files": 4,
+  "max_rel_pct": 0.021238577838511363,
+  "max_excess": 0.045367264807509855
+ },
+ "refuted": [
+  {
+   "file": "results/replicates/oat_rig_mult_2.0_s108_r100.json",
+   "where": "seed 108 rho 100.0 methods:rn+exact_recourse",
+   "ub": 153.6913272155836,
+   "witness": "rn_deck+exact_recourse",
+   "value": 153.69669528336976,
+   "excess": 0.005368067786150732,
+   "rel_pct": 0.0034927590797761256,
+   "kind": "cross-solve"
+  },
+  {
+   "file": "results/replicates/rep_s120_r50.json",
+   "where": "seed 120 rho 50.0 methods:rn_tilt2+exact_recourse",
+   "ub": 250.55054126467087,
+   "witness": "ce",
+   "value": 250.59052584556994,
+   "excess": 0.03998458089907331,
+   "rel_pct": 0.015958688693007175,
+   "kind": "cross-solve"
+  },
+  {
+   "file": "results/replicates/rep_s129_r50.json",
+   "where": "seed 129 rho 50.0 methods:rn_deck+exact_recourse",
+   "ub": 213.6078279462129,
+   "witness": "rn_tilt2+exact_recourse",
+   "value": 213.6531952110204,
+   "excess": 0.045367264807509855,
+   "rel_pct": 0.021238577838511363,
+   "kind": "cross-solve"
+  },
+  {
+   "file": "results/scale/scale_study_ns.json",
+   "where": "node study seed 100 5x5 unrestricted",
+   "ub": 174.31652020062572,
+   "witness": "fixed first stage on the same tree",
+   "value": 174.35271912361733,
+   "excess": 0.0361989229916162,
+   "rel_pct": 0.020766203312201192,
+   "kind": "cross-solve"
+  },
+  {
+   "file": "results/scale/scale_study_ns.json",
+   "where": "node study seed 101 5x5 unrestricted",
+   "ub": 223.93015447057692,
+   "witness": "fixed first stage on the same tree",
+   "value": 223.9468704975286,
+   "excess": 0.01671602695168417,
+   "rel_pct": 0.0074648396466321185,
+   "kind": "cross-solve"
+  }
+ ]
+}

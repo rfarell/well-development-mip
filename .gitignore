@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.DS_Store
+paper/sections/
+paper/figures/
+paper/summary_*.md
+src/model/results/net_frozen_cov_rescore.json
+src/model/results/ndic_rule_check.md

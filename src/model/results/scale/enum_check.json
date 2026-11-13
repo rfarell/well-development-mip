@@ -1,0 +1,79 @@
+{
+ "model_version": "v3.3",
+ "solver_rev": "s2",
+ "rho": 20.0,
+ "seed": 100,
+ "n_first_stages": 18,
+ "n_node_recourses": 3600,
+ "time_enum": 3.5533087253570557,
+ "enum_ce": 3.198476409982972,
+ "enum_enpv": 6.602553193356744,
+ "enum_plan": {
+  "z0": [],
+  "zk": [
+   [],
+   [],
+   [
+    3,
+    15
+   ],
+   [],
+   [
+    3
+   ],
+   [
+    6,
+    19
+   ],
+   [],
+   [
+    6,
+    19
+   ],
+   [
+    9,
+    22
+   ]
+  ],
+  "y": [],
+  "w0": [],
+  "wk": [
+   [],
+   [],
+   [
+    0
+   ],
+   [],
+   [
+    0
+   ],
+   [
+    0
+   ],
+   [],
+   [
+    0
+   ],
+   [
+    0
+   ]
+  ]
+ },
+ "milp": {
+  "obj": 6.6025531933567425,
+  "bound": 6.6025531933567425,
+  "gap": 0.0
+ },
+ "solve_ce": {
+  "ce_lb": 3.198476409982972,
+  "ce_ub": 3.198476409982972,
+  "rounds": 2,
+  "time": 0.1719355583190918,
+  "bound_valid": true
+ },
+ "checks": {
+  "solver_lb_matches_enum": true,
+  "enum_within_bracket": true,
+  "milp_matches_enum": true
+ }
+}

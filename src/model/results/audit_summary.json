@@ -1,0 +1,17 @@
+{
+ "stats": {
+  "files": 243,
+  "runs": 239,
+  "brackets": 2703,
+  "rows_with_a_cross_check": 1808,
+  "cross_pairs": 6936,
+  "like_for_like_runs": 74,
+  "refuted": 0,
+  "refuted_cross_solve": 0,
+  "refuted_within_solve": 0,
+  "refuted_files": 0,
+  "max_rel_pct": 0.0,
+  "max_excess": 0.0
+ },
+ "refuted": []
+}

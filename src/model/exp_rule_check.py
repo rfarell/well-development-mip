@@ -503,6 +503,24 @@ def program_value(run, rep_dir):
     return float("nan")
 
 
+def fixed_setting_gaps(Q):
+    """First-year gap, in % of E[NPV](rn), of every registered setting used unchanged on all the areas of Q: an array
+    with one row per setting and one column per area, defined as fs_gap_pct in summarize_run. None if a run's grid
+    differs from the registered grid."""
+    grid = list(settings(MUS_CREW["registered"]))
+    gaps = [[] for _ in grid]
+    for r in Q:
+        S, fy = r["summary"], {e["id"]: e for e in r["first_years"]}
+        rows = [x for x in r["settings"] if x["mu_crew"] == 0.0]
+        if [{k: x[k] for k in grid[0]} for x in rows] != grid:
+            return grid, None
+        for j, x in enumerate(rows):
+            c = fy[x["fs"]].get("cert", {})
+            ok = "ce_lb" in c and c.get("bound_valid", True) and c.get("feasible", True)
+            gaps[j].append(100.0 * (S["ce_zA"] - c["ce_lb"]) / max(1e-9, abs(S["enpv_rn"])) if ok else float("nan"))
+    return grid, np.array(gaps, dtype=float)
+
+
 def write_summary_synth(files, md_path, tex_path, rep_dir="results/replicates"):
     """The synthetic summary across one-run files: per tolerance, the registered oracle's gap (and its reproduction of the
     stored replicate run), the best first year's gap, the decoupled selection's gap and ranks; the \\synthrule macros.
@@ -556,6 +574,13 @@ def write_summary_synth(files, md_path, tex_path, rep_dir="results/replicates"):
         nbetter = np.array([r["summary"].get("n_reg_better", 0) for r in Q])
         sp_c = np.array([r["summary"].get("spearman", {}).get("complete_reg", np.nan) for r in Q], dtype=float)
         sp_d = np.array([r["summary"].get("spearman", {}).get("decoupled_reg", np.nan) for r in Q], dtype=float)
+        grid, fixed = fixed_setting_gaps(Q)
+        fx = None
+        if fixed is not None and len(g("reg_oracle")) == n and np.all(np.isfinite(fixed)):
+            tuned, fmean = g("reg_oracle"), fixed.mean(axis=1)
+            jb, jd = int(np.argmin(fmean)), grid.index(DEFAULT_RULE)
+            fx = dict(better=int((fmean < tuned.mean()).sum()), best=boot_mean(fixed[jb]), best_cfg=grid[jb],
+                      best_areas=int((fixed[jb] < tuned).sum()), default=boot_mean(fixed[jd]))
         matches = sum(bool(r["summary"].get("stored", {}).get("first_year_match")) for r in Q)
         errors = sum(len(r.get("errors", [])) for r in Q)
         L += [f"## Risk tolerance ${rho}M: {n} areas (seeds {Q[0]['_seed']} to {Q[-1]['_seed']}), {errors} stage errors", "",
@@ -574,6 +599,10 @@ def write_summary_synth(files, md_path, tex_path, rep_dir="results/replicates"):
         if all("pv_mean" in stats.get(name, {}) for name in ("reg_oracle", "reg_best", "reg_decoupled")):
             L.append(f"- first-year gaps in % of program value, E(z_N) - E(0): oracle {fnum(stats['reg_oracle']['pv_mean'])}, best first year {fnum(stats['reg_best']['pv_mean'])}, "
                      f"decoupled selection {fnum(stats['reg_decoupled']['pv_mean'])} (means)")
+        if fx:
+            L.append(f"- one setting used unchanged on every area: {fx['better']} of {len(grid)} settings have a smaller mean first-year gap than the rule tuned area by area; "
+                     f"best ({cfg_label(fx['best_cfg'])}) mean {fnum(fx['best'][0])} [{fnum(fx['best'][1])}, {fnum(fx['best'][2])}]%, smaller on {fx['best_areas']} of {n} areas; "
+                     f"default setting mean {fnum(fx['default'][0])} [{fnum(fx['default'][1])}, {fnum(fx['default'][2])}]%")
         L.append("")
         L += ["| seed | oracle gap % | stored % | best % | decoupled % | decoupled plan % | oracle rank | decoupled rank | n first years | errors |", "|---|---|---|---|---|---|---|---|---|---|"]
         for r in Q:
@@ -600,6 +629,12 @@ def write_summary_synth(files, md_path, tex_path, rep_dir="results/replicates"):
               f"\\newcommand{{\\synthruleNFsMean{w}}}{{{fnum(nfs.mean(), 1)}}}", f"\\newcommand{{\\synthruleNBetterMean{w}}}{{{fnum(nbetter.mean(), 1)}}}",
               f"\\newcommand{{\\synthruleSpearmanCompleteMean{w}}}{{{fnum(np.nanmean(sp_c))}}}", f"\\newcommand{{\\synthruleSpearmanDecoupledMean{w}}}{{{fnum(np.nanmean(sp_d))}}}",
               f"\\newcommand{{\\synthruleErrors{w}}}{{{errors}}}"]
+        if fx:
+            T += [f"\\newcommand{{\\synthruleFixedBetter{w}}}{{{fx['better']}}}", f"\\newcommand{{\\synthruleFixedBestGapMean{w}}}{{{fnum(fx['best'][0])}}}",
+                  f"\\newcommand{{\\synthruleFixedBestGapMeanLo{w}}}{{{fnum(fx['best'][1])}}}", f"\\newcommand{{\\synthruleFixedBestGapMeanHi{w}}}{{{fnum(fx['best'][2])}}}",
+                  f"\\newcommand{{\\synthruleFixedBestAreas{w}}}{{{fx['best_areas']}}}", f"\\newcommand{{\\synthruleFixedBestDeck{w}}}{{{fx['best_cfg']['deck']:g}}}",
+                  f"\\newcommand{{\\synthruleFixedDefaultGapMean{w}}}{{{fnum(fx['default'][0])}}}", f"\\newcommand{{\\synthruleFixedDefaultGapMeanLo{w}}}{{{fnum(fx['default'][1])}}}",
+                  f"\\newcommand{{\\synthruleFixedDefaultGapMeanHi{w}}}{{{fnum(fx['default'][2])}}}"]
     open(md_path, "w").write("\n".join(L) + "\n")
     if tex_path:
         open(tex_path, "w").write("\n".join(T) + "\n")

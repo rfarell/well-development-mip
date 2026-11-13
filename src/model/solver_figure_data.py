@@ -146,7 +146,7 @@ def load_study(run_dir, refs, bench_json, scored_rows=None, inst=0, rho=100):
     if any(r["options_sha1"] != ref["options_sha1"] for r in used):
         raise ValueError("search and reference option tables differ")
     if not np.allclose([r["seed_ce"] for r in used], ref["heur_ce_ce"], rtol=0, atol=1e-8):
-        raise ValueError("different oracle-rule seed plans")
+        raise ValueError("different CE-tuned-rule seed plans")
     with open(bench_json) as fh:
         bench = json.load(fh)
     bench_rows = [r for r in bench["runs"] if r["seed"] == used[0]["instance_seed"] and r["rho"] == rho]

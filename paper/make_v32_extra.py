@@ -11,7 +11,7 @@ Reads the stress-case and conventions run files and writes four booktabs tables 
                       truth with the recourse of every first stage re-optimized under that truth
                       (run['perturbed_reopt']['zA_vs_family'][truth]): one row per truth, B/T/L and the interval range in %
                       of E(z_N) at each rho, and a row over all truths;
-  tab:perturb-reopt-detail  (SI) the same per instance in $M, with the expected-NPV shortfall of the oracle rule's first
+  tab:perturb-reopt-detail  (SI) the same per instance in $M, with the expected-NPV shortfall of the CE-tuned rule's first
                       stage against z_N's, both with risk-neutral recourse re-optimized under the truth
                       (run['perturbed_reopt']['table'][truth][method]);
   tab:conventions     seed 0's re-solves under other terminal-credit shares nu and hedge conventions f0
@@ -225,7 +225,7 @@ cap = (r"Perturbed truths with the recourse re-optimized (four instances, $U=40$
        r"lies below it. Interval: the smallest lower end and the largest upper end of these intervals over the four "
        r"instances, in \% of $E(\mathbf z_N)$ under the same truth ($\mathbf z_N$'s first stage with risk-neutral recourse "
        r"re-optimized). All truths: the counts and the range over the 40 instance--truth pairs. The per-instance gains in "
-       r"\$M and the comparison with the oracle rule are in the SI.")
+       r"\$M and the comparison with the CE-tuned rule are in the SI.")
 tab += table_open(cap, "tab:perturb-reopt", "lcccc",
                   [" & " + " & ".join(rf"\multicolumn{{2}}{{c}}{{$\rho=\${rho}$M}}" for rho in RHOS) + r" \\",
                    "".join(rf"\cmidrule(lr){{{2 + 2 * i}-{3 + 2 * i}}}" for i in range(len(RHOS))),
@@ -244,7 +244,7 @@ for rho in RHOS:
 tab.append(" & ".join(cells) + r" \\  % totals over the 40 instance-truth pairs at each rho")
 tab += table_close()
 
-# SI table: the per-instance gains in $M, the intervals in $M and %, and the oracle rule's columns
+# SI table: the per-instance gains in $M, the intervals in $M and %, and the CE-tuned rule's columns
 cap = (r"Perturbed truths with the recourse re-optimized, per instance (the detail of "
        r"Table~\ref{tab:perturb-reopt}). Under each truth, one perturbation at a time as in "
        r"Table~\ref{tab:perturbation}, the first stage of each plan is held fixed and its recourse is re-optimized under "
@@ -256,14 +256,14 @@ cap = (r"Perturbed truths with the recourse re-optimized, per instance (the deta
        r"$[\mathrm{LB}_A-\max\mathrm{UB},\ \mathrm{UB}_A-\max\mathrm{LB}]$, in \$M and as shares of $E(\mathbf z_N)$ under the "
        r"same truth ($\mathbf z_N$'s first stage with risk-neutral recourse re-optimized). B/T/L: instances whose interval "
        r"lies above zero, contains it, or lies below it; a gain of 0.00 means that $\mathbf z_A$ and the best member commit "
-       r"the same first stage. Rule: expected NPV of $\mathbf z_N$'s first stage less that of the oracle rank-and-fill "
-       r"rule's (tuned by in-sample CE at that $\rho$; on seeds 0 and 1 the same configuration as the practice rule), both "
+       r"the same first stage. Rule: expected NPV of $\mathbf z_N$'s first stage less that of the CE-tuned rank-and-fill "
+       r"rule's (tuned by in-sample CE at that $\rho$; on seeds 0 and 1 the same configuration as the NPV-tuned rule), both "
        r"with risk-neutral recourse re-optimized under the truth, in \$M per instance, and the smallest as a share of "
        r"$E(\mathbf z_N)$; a negative entry means that the rule's first stage earns more. Totals count instance--truth pairs.")
 tab += table_open(cap, "tab:perturb-reopt-detail", "lrrrcrr",
                   [r"Truth & Gain over best member, \$M & Interval, \$M & Interval, \% & B/T/L & Rule: $E(\mathbf z_N)-E$, \$M & Rule min, \% \\"])
 for rho in RHOS:
-    tab.append(rf"\multicolumn{{7}}{{l}}{{\emph{{$\rho$ = \${rho}M, 4 instances (s0, s1, s2, s3), $U=40$; first stages of $\mathbf z_A$, $\mathbf z_N$, the deck family and the oracle rule}}}} \\")
+    tab.append(rf"\multicolumn{{7}}{{l}}{{\emph{{$\rho$ = \${rho}M, 4 instances (s0, s1, s2, s3), $U=40$; first stages of $\mathbf z_A$, $\mathbf z_N$, the deck family and the CE-tuned rule}}}} \\")
     for key, lab in TRUTHS:
         q = PR[(rho, key)]
         tab.append(" & ".join([lab, "; ".join(f2(x) for x in q["g"]), iv(min(q["lo"]), max(q["hi"])), f"[{f2(min(q['plo']))}, {f2(max(q['phi']))}]",
@@ -287,7 +287,7 @@ for rho in RHOS:
     macro(f"ReoptGainPctMin{sfx}", num(min(t["gp"])), f"z_A - best family member, CE, re-optimized recourse: smallest point value, % of E(z_N) under the truth [rho = ${rho}M]", mac)
     macro(f"ReoptGainPctMax{sfx}", num(max(t["gp"])), f"the same: largest point value, % [rho = ${rho}M]", mac)
     macro(f"ReoptSharedInst{sfx}", f"{len(t['shared'])}/4", f"instances where z_A's first stage is that of the best family member under some truth (a gain of exactly 0) [rho = ${rho}M]", mac)
-    macro(f"ReoptRuleMin{sfx}", num(min(t["rule"])), f"E(z_N first stage) - E(oracle rule first stage), both with RN recourse re-optimized under the truth: smallest, $M [rho = ${rho}M]", mac)
+    macro(f"ReoptRuleMin{sfx}", num(min(t["rule"])), f"E(z_N first stage) - E(CE-tuned rule first stage), both with RN recourse re-optimized under the truth: smallest, $M [rho = ${rho}M]", mac)
     macro(f"ReoptRuleMax{sfx}", num(max(t["rule"])), f"the same: largest, $M [rho = ${rho}M]", mac)
     macro(f"ReoptRuleNotBehind{sfx}", str(t["notbehind"]), f"pairs where the rule's first stage is within the tie tolerance of z_N's or ahead [rho = ${rho}M]", mac)
 A = {k: RE[100][k] + RE[300][k] for k in ("n", "b", "t", "l", "be", "te", "le", "notbehind")}
@@ -302,7 +302,7 @@ macro("ReoptIntPctMaxAll", num(max(RE[100]["phi"], RE[300]["phi"])), "largest up
 macro("ReoptEnpvBeatsAll", str(A["be"]), "pairs where z_A's first stage beats the best member on E[NPV] with RN recourse (bounds separate), both rho", mac)
 macro("ReoptEnpvTiesAll", str(A["te"]), "pairs with an E[NPV] tie, both rho", mac)
 macro("ReoptEnpvLosesAll", str(A["le"]), "pairs where z_A's first stage loses on E[NPV] with RN recourse, both rho", mac)
-macro("ReoptRuleNotBehindAll", str(A["notbehind"]), "pairs where the oracle rule's first stage matches (tie tolerance) or beats z_N's on E[NPV], RN recourse re-optimized, both rho", mac)
+macro("ReoptRuleNotBehindAll", str(A["notbehind"]), "pairs where the CE-tuned rule's first stage matches (tie tolerance) or beats z_N's on E[NPV], RN recourse re-optimized, both rho", mac)
 
 # ---------------------------------------------------------------- tab:conventions
 C = json.load(open(os.path.join(RES, CONV_FILE)))

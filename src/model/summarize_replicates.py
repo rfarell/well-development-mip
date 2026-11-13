@@ -45,19 +45,19 @@ NAMES = dict(gain_tilt1="GainTiltOne", gain_tilt2="GainTilt", gain_deck_practice
              wells0_rn="WellsYearZeroRn", wells0_ce="WellsYearZeroCe", wells0_heur="WellsYearZeroHeur")
 # (label, key, certified?)  certified rows carry a bracket (key_lb, key_ub) and a resolved count
 ROWS_MAIN = [
-    ("risk-neutral plan over the practice rule, at expected NPV", "vopt", False),
+    ("risk-neutral plan over the NPV-tuned rule, at expected NPV", "vopt", False),
     (r"\quad the same two plans on the certainty equivalent", "vopt_ce", False),
     (r"\quad risk-neutral plan at the rule's own deck over the rule", "vopt_rule_deck", False),
     (r"\quad rule's committed first year with risk-neutral later years", "vopt_robust", True),
     (r"\quad with the type curve 15\% low (plans as planned)", "vopt_truth_low", False),
     (r"\quad with the type curve 15\% high", "vopt_truth_high", False),
-    ("first-year gap of the oracle rule", "fs_gap_ce", True),
+    ("first-year gap of the CE-tuned rule", "fs_gap_ce", True),
     (r"risk-averse plan over the risk-neutral plan, $\mathrm{CE}(z_A)-\mathrm{CE}(z_N)$", "ce_gain", False),
     (r"\quad expected NPV given up (Beck's cost)", "enpv_cost", False),
     (r"\quad residual over the practice deck 0.9", "gain_deck_practice", False),
     (r"\quad residual over the tilted MIP, one iteration", "gain_tilt1", False),
     (r"\quad residual over the tilted MIP, two iterations", "gain_tilt2", False),
-    (r"\quad residual over the best uniform deck (oracle)", "gain_deck", False),
+    (r"\quad residual over the best uniform deck (CE-tuned)", "gain_deck", False),
     (r"\quad residual over the best family member", "gain_family", False),
     (r"\quad first-year residual over the better of tilt 2 and the best deck", "gain_family_exact", True),
     (r"\quad gain over the risk-neutral plan, type curve 15\% low", "ce_gain_truth_low", False),
@@ -347,7 +347,7 @@ def md_block(rho, Q, stress):
                  f"certificates: gap {f(gp['mean'], 3)}% (max {f(gp['max'], 3)}%), rounds median {f(rd['median'], 0)} (max {f(rd['max'], 0)}), solver time median {f(tc['median'], 0)} s (max {f(tc['max'], 0)} s).")
     lines.append(f"Plans: expected wells rule {f(stat(Q, 'wells_heur', pct=False)['mean'], 1)}, z_N {f(stat(Q, 'wells_rn', pct=False)['mean'], 1)}, z_A {f(stat(Q, 'wells_ce', pct=False)['mean'], 1)}; "
                  f"packages z_N {f(stat(Q, 'pkgs_rn', pct=False)['mean'], 2)}, z_A {f(stat(Q, 'pkgs_ce', pct=False)['mean'], 2)}; long-lateral share z_N {f(stat(Q, 'long_share_rn', pct=False)['mean'], 0)}%, z_A {f(stat(Q, 'long_share_ce', pct=False)['mean'], 0)}%; "
-                 f"oracle deck median {f(stat(Q, 'deck', pct=False)['median'], 3)}; implied deck of z_N's weights: price {f(stat(Q, 'implied_price', pct=False)['mean'], 3)}, type curve {f(stat(Q, 'implied_theta', pct=False)['mean'], 3)}; "
+                 f"CE-tuned deck median {f(stat(Q, 'deck', pct=False)['median'], 3)}; implied deck of z_N's weights: price {f(stat(Q, 'implied_price', pct=False)['mean'], 3)}, type curve {f(stat(Q, 'implied_theta', pct=False)['mean'], 3)}; "
                  f"variance: common-factor share of z_N {f(stat(Q, 'factor_share_rn', pct=False)['mean'], 0)}%, of the variance removed {f(stat(Q, 'factor_share_removed', pct=False)['mean'], 0)}%, price share removed {f(stat(Q, 'price_share_removed', pct=False)['mean'], 0)}%.")
     truths = sorted({t for q in Q for t in q["truth_vopt_pct"]})
     if truths:
@@ -381,7 +381,7 @@ def tex_main_table(by_rho, stress):
             r"\begin{table}[tbp]", r"\centering", r"\scriptsize", r"\setlength{\tabcolsep}{3pt}",
             r"\caption{Replicate study, companion to Table~\ref{tab:rep-main}: the main differences as shares of the program value $E(z_N)-E(\mathbf 0)$ (mean with the 95\% bootstrap interval; last column the range over the sixteen stress-case runs), and the scale, regime and certificate statistics of the instances.}",
             r"\label{tab:rep-main-extra}", r"\begin{tabular}{>{\raggedright\arraybackslash}p{3.4cm}" + "c" * ncol + "}", r"\toprule", head, r"\midrule"]
-    for lab, key in (("risk-neutral plan over the practice rule, \\% of program value", "vopt"), ("first-year gap of the oracle rule, \\% of program value", "fs_gap_ce"),
+    for lab, key in (("risk-neutral plan over the NPV-tuned rule, \\% of program value", "vopt"), ("first-year gap of the CE-tuned rule, \\% of program value", "fs_gap_ce"),
                      (r"$\mathrm{CE}(z_A)-\mathrm{CE}(z_N)$, \% of program value", "ce_gain"), ("residual over the tilted MIP (one iteration), \\% of program value", "gain_tilt1"),
                      ("residual over the best family member, \\% of program value", "gain_family"), ("RN-VSS, \\% of program value", "rn_vss")):
         cells = []
@@ -433,7 +433,7 @@ def tex_truth_table(by_rho):
         w = RHO_WORD.get(int(r), str(int(r))).lower()
         out += [r"\begin{table}[tbp]", r"\centering", r"\scriptsize",
                 r"\caption{Replicate study at $\rho=\$" + f"{r:,.0f}" + r"$M: the same plans re-scored under perturbed truths (recourse as planned), mean over " + f"{len(Q)}"
-                + r" instances with the bootstrap interval, in \% of the perturbed $E(z_N)$. The family member is the one chosen at model truth; the re-selected column picks the best member under each truth (an oracle).}",
+                + r" instances with the bootstrap interval, in \% of the perturbed $E(z_N)$. The family member is the one chosen at model truth; the re-selected column picks the best member under each truth (an in-sample choice).}",
                 r"\label{tab:rep-truth-" + w + "}", r"\begin{tabular}{lcccc}", r"\toprule",
                 r"truth & value of optimization & residual over the family member & residual, re-selected & $\mathrm{CE}(z_A)-\mathrm{CE}(z_N)$ \\", r"\midrule"]
         for t in truths:
@@ -513,7 +513,7 @@ def tex_oat_table(base_Q, rows, rho):
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-PM_KEYS = (("vopt", "risk-neutral plan over the practice rule, at expected NPV"), ("fs_gap_ce", "first-year gap of the oracle rule"), ("ce_gain", r"$\mathrm{CE}(z_A)-\mathrm{CE}(z_N)$"),
+PM_KEYS = (("vopt", "risk-neutral plan over the NPV-tuned rule, at expected NPV"), ("fs_gap_ce", "first-year gap of the CE-tuned rule"), ("ce_gain", r"$\mathrm{CE}(z_A)-\mathrm{CE}(z_N)$"),
            ("enpv_cost", r"expected NPV given up"), ("gain_family", "residual over best family member"), ("gain_tilt1", "residual over tilted MIP (one iteration)"),
            ("rn_vss", "RN-VSS"), ("implied_price", "implied price of $z_N$'s weights"), ("lam_sigma_rn", r"$\lambda\sigma_W(z_N)$"))
 VARIANTS = {"pricemarket": ("Pm", r"price-market control: every hedge share set to 1, so the price enters the plan at the strip in every year and the producing base is fully hedged; it removes the price charge and the price recourse together"),
@@ -549,10 +549,10 @@ def tex_pm_table(rows, rho, n, tag="pricemarket"):
     return "\n".join(out)
 
 
-NDIC_ROWS = [("vopt", "risk-neutral plan over the practice rule, at expected NPV"), ("vopt_robust", r"\quad rule's committed first year with risk-neutral later years"), ("fs_gap_ce", "first-year gap of the oracle rule"),
+NDIC_ROWS = [("vopt", "risk-neutral plan over the NPV-tuned rule, at expected NPV"), ("vopt_robust", r"\quad rule's committed first year with risk-neutral later years"), ("fs_gap_ce", "first-year gap of the CE-tuned rule"),
              ("ce_gain", r"$\mathrm{CE}(z_A)-\mathrm{CE}(z_N)$"), ("enpv_cost", r"\quad expected NPV given up"), ("gain_deck_practice", r"\quad residual over the practice deck 0.9"),
              ("gain_tilt1", r"\quad residual over the tilted MIP, one iteration"), ("gain_tilt2", r"\quad residual over the tilted MIP, two iterations"),
-             ("gain_deck", r"\quad residual over the best uniform deck (oracle)"), ("gain_family", r"\quad residual over the best family member"), ("rn_vss", "RN-VSS"), ("flex", "value of flexibility"), ("evpi", "EVPI")]
+             ("gain_deck", r"\quad residual over the best uniform deck (CE-tuned)"), ("gain_family", r"\quad residual over the best family member"), ("rn_vss", "RN-VSS"), ("flex", "value of flexibility"), ("evpi", "EVPI")]
 
 
 def tex_ndic_table(Q):
@@ -573,7 +573,7 @@ def tex_ndic_table(Q):
     for lab, key, d in ((r"$\lambda\sigma_W(z_N)$", "lam_sigma_rn", 2), (r"$E(z_N)$, \$M", "enpv_rn", 1), (r"$E(\mathbf 0)$, \$M", "enpv0", 1), ("program value, \\$M", "program_value", 1),
                         (r"$\mathrm{CE}(z_A)-\mathrm{CE}(z_N)$, \$M", "ce_gain", 2), ("first-year gap, \\$M", "fs_gap_ce", 2),
                         ("expected wells, rule / $z_N$ / $z_A$", None, 1), ("packages, $z_N$ / $z_A$", "pk", 0), ("long-lateral share, $z_N$ / $z_A$ (\\%)", "ls", 0),
-                        ("oracle deck", "deck", 3), ("implied deck of $z_N$'s weights, price / type curve", "imp", 3), ("certificate gap, \\%", "gap_pct", 3), ("solver time, s", "t_ce", 0)):
+                        ("CE-tuned deck", "deck", 3), ("implied deck of $z_N$'s weights, price / type curve", "imp", 3), ("certificate gap, \\%", "gap_pct", 3), ("solver time, s", "t_ce", 0)):
         if key is None:
             cells = [f"{f(q['wells_heur'], 0)} / {f(q['wells_rn'], 0)} / {f(q['wells_ce'], 0)}" for q in Q]
         elif key == "pk":
@@ -743,7 +743,7 @@ def fig_main(by_rho, path):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     rhos = sorted(by_rho)
-    panels = [("vopt", "value of optimization\n(risk-neutral plan over rule)"), ("fs_gap_ce", "first-year gap\nof the oracle rule"), ("ce_gain", "CE gain over\nthe risk-neutral plan"),
+    panels = [("vopt", "value of optimization\n(risk-neutral plan over rule)"), ("fs_gap_ce", "first-year gap\nof the CE-tuned rule"), ("ce_gain", "CE gain over\nthe risk-neutral plan"),
               ("gain_tilt1", "residual over the\ntilted MIP\n(one iteration)"), ("gain_family", "residual over best\nfamily member"), ("rn_vss", "RN-VSS"), ("flex", "value of flexibility"), ("evpi", "EVPI")]
     # Draw at manuscript width so labels retain their intended point size.
     fig, axes = plt.subplots(2, 4, figsize=(6.5, 5.2), sharey=False)

@@ -3,6 +3,9 @@
 Run from any working directory with the repository's dev Python:
     python /path/to/repo/src/model/fig_headline.py
 
+Panel (a) also reads the rule-check runs: the first-year gap when the first year is
+chosen by scoring every candidate with one later-drilling rule.
+
 Writes only headline_results.pdf, .png and .json in paper/figures by default.
 --check-only validates the inputs and statistics without writing output. No
 solver is imported or run, and no generated tables or macros are regenerated.
@@ -34,6 +37,8 @@ METRICS = ("fs_gap_ce", "ce_gain", "gain_tilt1", "rn_vss")
 MACRO_PREFIX = {"fs_gap_ce": "repFsGapCe", "ce_gain": "repCeGain",
                 "gain_tilt1": "repGainTiltOne", "rn_vss": "repRnVss"}
 RHO_SUFFIX = {50: "Fifty", 100: "Hundred", 300: "ThreeHundred"}
+RULE_SELECTION = "reg_decoupled"    # first year chosen by scoring every candidate with one later-drilling rule
+RULE_MACRO = "synthruleRegDecoupledGapMean"
 
 
 def require(condition, message):
@@ -109,6 +114,50 @@ def load_checked(results_dir):
     return quantities, files
 
 
+def load_rule_check(rule_dir):
+    """Per-area first-year gap of the first year selected with one later-drilling rule (rule-check runs)."""
+    expected = {f"synth_s{s}_r{rho}.json": (s, rho) for s in BASE_SEEDS for rho in RHOS}
+    actual = {p.name for p in rule_dir.glob("synth_s*_r*.json")}
+    require(actual == set(expected),
+            f"Unexpected rule-check files: missing={sorted(set(expected)-actual)}, "
+            f"extra={sorted(actual-set(expected))}")
+    files = sorted(rule_dir / name for name in expected)
+    values = {rho: {} for rho in RHOS}
+    for path in files:
+        seed, rho = expected[path.name]
+        doc = json.loads(path.read_text())
+        require(not doc.get("errors"), f"File-level errors: {path}")
+        require(doc.get("seed") == seed, f"Wrong seed: {path}")
+        runs = [run for run in doc.get("runs", []) if run.get("summary")]
+        require(len(runs) == 1, f"Expected exactly one finished run: {path}")
+        run = runs[0]
+        require(float(run.get("rho", -1)) == float(rho), f"Wrong tolerance: {path}")
+        require(run.get("model_version") == "v3.3" and run.get("solver_rev") == "s2",
+                f"Expected model v3.3 / solver s2: {path}")
+        require(str(run.get("status", "")).startswith("done") and not run.get("errors"),
+                f"Incomplete run or stage errors: {path}")
+        gap = run["summary"].get(RULE_SELECTION, {}).get("fs_gap_pct")
+        require(finite_number(gap), f"Non-finite {RULE_SELECTION}.fs_gap_pct: {path}")
+        values[rho][seed] = float(gap)
+    return values, files
+
+
+def rule_statistics(values):
+    """Mean and percentile-bootstrap interval per tolerance, as the rule-check summary computes them
+    (4,000 resamples of the areas, numpy seed 0)."""
+    rows = []
+    for rho in RHOS:
+        require(tuple(sorted(values[rho])) == BASE_SEEDS, f"Rule-check seed set changed at {rho}")
+        x = np.array([values[rho][seed] for seed in BASE_SEEDS], dtype=float)
+        rng = np.random.default_rng(0)
+        means = x[rng.integers(0, len(x), size=(4000, len(x)))].mean(axis=1)
+        row = {"rho_usd_million": rho, "n": len(x), "mean": float(x.mean()),
+               "lo": float(np.percentile(means, 2.5)), "hi": float(np.percentile(means, 97.5))}
+        require(row["lo"] <= row["mean"] <= row["hi"], f"Invalid mean interval for the rule-check series at {rho}")
+        rows.append(row)
+    return rows
+
+
 def checked_stats(rows, metric):
     result = summary.stat(rows, metric)
     require(result is not None and result["n"] == len(rows), f"Dropped values in {metric}")
@@ -145,9 +194,13 @@ def statistics(quantities):
                 "lower_margin_mean_revenue_multiplier": 0.75}}
 
 
-def verify_statistics(data, macro_path, reference_path):
+def verify_statistics(data, macro_path, reference_path, rule_macro_path):
     macros = {k: float(v) for k, v in re.findall(
         r"\\newcommand\{\\([^}]+)\}\{(-?[0-9.]+)\}", macro_path.read_text())}
+    rule_macros = {k: float(v) for k, v in re.findall(
+        r"\\newcommand\{\\([^}]+)\}\{(-?[0-9.]+)\}", rule_macro_path.read_text())}
+    require(not set(macros) & set(rule_macros), "Macro names repeat across the two macro files")
+    macros.update(rule_macros)
     reference = json.loads(reference_path.read_text())
     require(reference["base"]["seeds"] == list(BASE_SEEDS), "Independent base seed set changed")
     macro_checks = []
@@ -185,8 +238,15 @@ def verify_statistics(data, macro_path, reference_path):
         macro_check("repNetRnVssDiff" + ("" if field == "mean" else field.title()),
                     paired["paired_change_percentage_points"][field])
     macro_check("repNetN", paired["base"]["n"])
+    for row in data["base"]["rule_selection"]:
+        suffix = RHO_SUFFIX[row["rho_usd_million"]]
+        require(row["n"] == len(BASE_SEEDS), "Rule-check series does not cover every base area")
+        macro_check(RULE_MACRO + suffix, row["mean"])
+        macro_check(RULE_MACRO + "Lo" + suffix, row["lo"])
+        macro_check(RULE_MACRO + "Hi" + suffix, row["hi"])
     return {"manuscript_macros": sorted(set(macro_checks)),
-            "independent_extract": "all plotted means/CIs/counts and paired change match within 1e-12"}
+            "independent_extract": "replicate-based means/CIs/counts and the paired change match within 1e-12; "
+                                   "the rule-check series is checked against its macros only"}
 
 
 def render(data, output_prefix):
@@ -226,7 +286,8 @@ def render(data, output_prefix):
                         ha="center", va="bottom", fontsize=8, color=color)
 
     series = data["base"]["series"]
-    dots(axes[0], np.arange(3), series["fs_gap_ce"])
+    dots(axes[0], np.arange(3)-0.2, series["fs_gap_ce"])
+    dots(axes[0], np.arange(3)+0.2, data["base"]["rule_selection"], color=residual_color, marker="s")
     dots(axes[1], np.arange(3)-0.14, series["ce_gain"])
     dots(axes[1], np.arange(3)+0.14, series["gain_tilt1"], color=residual_color, marker="s")
     paired = data["paired_margin_control"]
@@ -240,7 +301,7 @@ def render(data, output_prefix):
     axes[2].set_xlabel("Paired margin settings", labelpad=7)
     axes[0].set_ylabel("Difference (% of risk-neutral\nplan expected NPV)", labelpad=8)
     titles = ["(a) Optimization", "(b) Risk modeling", "(c) Advance planning"]
-    subtitles = ["Oracle rule's first-year CE gap", "Risk-averse plan's CE gain",
+    subtitles = ["Rule's first-year CE gap", "Risk-averse plan's CE gain",
                  "Expected-NPV gain (RN-VSS)"]
     for ax, title, subtitle in zip(axes, titles, subtitles):
         left = ax.get_position().x0
@@ -251,6 +312,9 @@ def render(data, output_prefix):
                       markerfacecolor="white", markersize=4)]
     axes[1].legend(handles, ["Over risk-neutral plan", "Residual after one tilt"], frameon=False,
                    loc="upper right", bbox_to_anchor=(1.1, 1.10),
+                   handletextpad=0.4, labelspacing=0.5, borderpad=0)
+    axes[0].legend(handles, ["CE-tuned rule's first year", "One later-drilling rule"], frameon=False,
+                   loc="upper left", bbox_to_anchor=(0.0, 1.10),
                    handletextpad=0.4, labelspacing=0.5, borderpad=0)
     fig.canvas.draw()
     visible_text = [text for text in fig.findobj(Text) if text.get_visible() and text.get_text()]
@@ -279,17 +343,23 @@ def main():
     parser.add_argument("--macros", type=Path, default=ROOT / "paper/sections/results_numbers_rep.tex")
     parser.add_argument("--reference", type=Path,
                         default=ROOT / "reference/headline-data.json")
+    parser.add_argument("--rule-dir", type=Path, default=ROOT / "src/model/results/rule_check")
+    parser.add_argument("--rule-macros", type=Path,
+                        default=ROOT / "paper/sections/results_numbers_synthrule.tex")
     parser.add_argument("--output-prefix", type=Path, default=ROOT / "paper/figures/headline_results")
     parser.add_argument("--check-only", action="store_true")
     args = parser.parse_args()
     quantities, files = load_checked(args.results_dir)
+    rule_values, rule_files = load_rule_check(args.rule_dir)
     data = statistics(quantities)
-    checks = verify_statistics(data, args.macros, args.reference)
+    data["base"]["rule_selection"] = rule_statistics(rule_values)
+    checks = verify_statistics(data, args.macros, args.reference, args.rule_macros)
     if args.check_only:
-        print("PASS: 90 base and 10 paired-control runs; all statistics match macros and independent extract.")
+        print("PASS: 90 base, 10 paired-control and 90 rule-check runs; all statistics match the macros, "
+              "and the replicate statistics match the independent extract.")
         return
     provenance = {
-        "schema": "spe-headline-results-v1", "statistics": data,
+        "schema": "spe-headline-results-v2", "statistics": data,
         "bootstrap": {"resamples": 4000, "numpy_seed": 0, "percentiles": [2.5, 97.5],
                       "resampling_unit": "instance, preserving method pairing",
                       "method": "percentile interval of resampled means of per-instance normalized differences"},
@@ -298,16 +368,23 @@ def main():
             "fs_gap_ce": "methods.ce.ce_lb - methods[heur_ce+exact_recourse].ce_lb (CE)",
             "ce_gain": "methods.ce.ce - methods.rn.ce (CE)",
             "gain_tilt1": "methods.ce.ce - methods.rn_tilt1.ce (full-plan CE)",
-            "rn_vss": "ladder.rn_vss (expected NPV)"},
-        "validation": {"model_version": "v3.3", "solver_rev": "s2", "completed_runs": 100,
+            "rn_vss": "ladder.rn_vss (expected NPV)",
+            "rule_selection": "summary.reg_decoupled.fs_gap_pct of the rule-check runs (CE): the first year chosen by "
+                              "scoring every distinct first year with the default later-drilling rule, with "
+                              "continuation optimized afterward"},
+        "validation": {"model_version": "v3.3", "solver_rev": "s2", "completed_runs": 100, "rule_check_runs": 90,
                        "excluded_runs": [], "refuted_certificates": [], "checks": checks,
                        "caveat": "Finite certificate checks can refute bounds, not establish their validity."},
         "negative_and_zero_values": "Retained without truncation or selection; sign-test ties use the existing reporter threshold.",
         "source_order": "sorted filenames, giving ascending seeds within each plotted group",
         "sources": [file_record(path) for path in files],
+        "rule_check_sources": [file_record(path) for path in rule_files],
+        "rule_selection_per_instance": [{"seed": seed, "rho_usd_million": rho, "fs_gap_pct": rule_values[rho][seed]}
+                                        for rho in RHOS for seed in BASE_SEEDS],
         "code": [file_record(Path(__file__)), file_record(Path(summary.__file__)),
                  file_record(ROOT / "src/model/audit_certificates.py")],
-        "cross_checks": {"macros": file_record(args.macros), "independent_extract": file_record(args.reference)},
+        "cross_checks": {"macros": file_record(args.macros), "rule_macros": file_record(args.rule_macros),
+                         "independent_extract": file_record(args.reference)},
         "software": {"numpy": np.__version__, "scipy": scipy.__version__, "matplotlib": matplotlib.__version__},
         "per_instance": [{"file": q["file"], "seed": q["seed"], "rho_usd_million": q["rho"],
                           "tag": q["tag"], "strip_expected_npv_usd_million": q["enpv_rn"],

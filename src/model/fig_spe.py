@@ -4,11 +4,11 @@ Usage: fig_spe.py [--paper ../../paper] [--replicates 'results/replicates/rep_s*
                   [--sweeps 'results/rho_sweep40_v33_s*.json'] [--implied-only]
 
 Writes figures/regime_map_spe.pdf: (a) CE gain of z_A over the risk-neutral plan, (b) Beck's expected-NPV cost, (c) residual over the
-best non-oracle deck-family member (practice deck 0.9, tilt after one and after two iterations); x =
+best deck-family member not tuned by CE (practice deck 0.9, tilt after one and after two iterations); x =
 lambda sigma_W(z_N); replicates as small dots, stress cases as open diamonds, sweeps as lines (sweeps lack the deck family,
 so panel (c) has no sweep line).
 Writes figures/implied_deck_spe.pdf/.png/.data.json: the implied price and type-curve multipliers of the risk-neutral plan's tilted
-weights and the oracle uniform revenue multiplier on one scale, with observed replicate ranges and stress cases.
+weights and the CE-tuned uniform revenue multiplier on one scale, with observed replicate ranges and stress cases.
 """
 import argparse
 import glob
@@ -86,7 +86,7 @@ def fig_regime(plt, reps, stress, sweeps, path):
     if vals:
         top = max(max(vals) * 1.25, 1.0)
         axes[2].set_ylim(min(0, min(vals)) - 0.2, max(top, BAND_PCT + 0.5) if max(vals) > 0.6 * BAND_PCT else top)
-    for ax, t in zip(axes, ("(a) CE gain of $z_A$ over the risk-neutral plan", "(b) expected-NPV cost (Beck)", "(c) residual over the best\nnon-oracle deck-family member")):
+    for ax, t in zip(axes, ("(a) CE gain of $z_A$ over the risk-neutral plan", "(b) expected-NPV cost (Beck)", "(c) residual over the best deck-family\nmember not tuned by CE")):
         ax.set_xscale("log"); ax.axhline(0, color="0.75", lw=0.6, zorder=0); ax.set_title(t, fontsize=8)
         ax.set_xlabel(r"$\lambda\sigma_W(z_N)$"); ax.grid(True, which="major", lw=0.3, alpha=0.5); ax.tick_params(labelsize=7)
     axes[0].set_ylabel(r"% of $E(z_N)$")
@@ -160,7 +160,7 @@ def fig_implied(plt, reps, stress, path):
     styles = (
         ("price", "Long-dated price / strip", "#0072B2", "o", "-"),
         ("productivity", "Productivity / mean", "#009E73", "s", "--"),
-        ("oracle_deck", "Oracle revenue multiplier", "#D55E00", "^", "-.")
+        ("oracle_deck", "CE-tuned revenue multiplier", "#D55E00", "^", "-.")
     )
     with plt.rc_context({"font.family": "Arial", "font.size": 8, "axes.labelsize": 8,
                          "xtick.labelsize": 8, "ytick.labelsize": 8, "legend.fontsize": 8,

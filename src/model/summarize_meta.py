@@ -92,7 +92,7 @@ def table(rows, rho, with_seed=True):
     hd = lambda a, b: r"\begin{tabular}[b]{@{}c@{}}" + a + r"\\ " + b + r"\end{tabular}"   # noqa: E731  two-line header
     out += [r"\begin{table}[tbp]", r"\centering", r"\scriptsize", r"\setlength{\tabcolsep}{4pt}",
             r"\caption{Rebuilt metaheuristics at $\rho=\$" + f"{rho:,.0f}" + r"$M" + ("" if with_seed else ", started without the heuristic seed") +
-            r": first-stage gap to $z_A$ under certified recourse, in \% of $E[\mathrm{NPV}](z_N)$, pooled over instances and seeds (median of the interval midpoint; worst = largest upper end), the share of runs whose first stage ties $z_A$'s within the certificates, the share that beat the oracle rule's certified first stage, the share that returned the oracle rule's plan (the seed), and the in-sample gap to $\mathrm{UB}_A$ at the shared recourse rule. Budgets are multiples of the evaluations one thread makes in the certified solver's cold start, measured before the model correction.}",
+            r": first-stage gap to $z_A$ under certified recourse, in \% of $E[\mathrm{NPV}](z_N)$, pooled over instances and seeds (median of the interval midpoint; worst = largest upper end), the share of runs whose first stage ties $z_A$'s within the certificates, the share that beat the CE-tuned rule's certified first stage, the share that returned the CE-tuned rule's plan (the seed), and the in-sample gap to $\mathrm{UB}_A$ at the shared recourse rule. Budgets are multiples of the evaluations one thread makes in the certified solver's cold start, measured before the model correction.}",
             r"\label{" + meta_label(rho, with_seed) + "}",
             r"\begin{tabular}{>{\raggedright\arraybackslash}p{2.4cm}lrrrrrrr}", r"\toprule",
             "method & budget & runs & " + " & ".join([hd("median", "gap"), hd("worst", "gap"), hd("ties $z_A$", r"(\%)"), hd("beats rule", r"(\%)"), hd("returns", r"seed (\%)"), hd("in-sample", "gap")]) + r" \\", r"\midrule"]
@@ -173,7 +173,7 @@ def _draw_curves(ax, run_dir, refs, bench_json, inst=0, rho=100, study=None):
     ax.plot(times[-1], cold["ce_lb"], "o", color="0.12", ms=2.6, zorder=5)
     ax.plot(times[-1], cold["ce_ub"], "|", color="0.12", ms=5, zorder=5)
     ax.axhline(ref["heur_ce_ce"], color="0.5", lw=0.8, ls=":", zorder=1)
-    ax.text(1.8, ref["heur_ce_ce"] + 0.11, "Oracle rule seed", fontsize=8, color="0.35")
+    ax.text(1.8, ref["heur_ce_ce"] + 0.11, "CE-tuned rule seed", fontsize=8, color="0.35")
     ax.annotate("Solver upper bound", xy=(0.72, cold["hist"][1]["ce_ub"]), xytext=(1.8, 145.72),
                 fontsize=8, ha="left", va="center", arrowprops={"arrowstyle": "-", "lw": 0.5, "color": "0.25"})
     ax.annotate("Solver incumbent", xy=(0.68, cold["hist"][1]["ce_lb"]), xytext=(1.8, 145.18),
@@ -239,7 +239,7 @@ def fig_bound_scale(run_dir, refs, bench_json, scale_json, path, inst=0, rho=100
         bottom.plot(ref["heur_ce_ce"], yseed, marker="D", color="0.4", ms=3.5, ls="none")
         bottom.plot([ref["heur_ce_exact_lb"], ref["heur_ce_exact_ub"]], [yseed, yseed], color="0.35", lw=1.3)
         bottom.plot([ref["heur_ce_exact_lb"], ref["heur_ce_exact_ub"]], [yseed, yseed], color="0.35", marker="|", ms=4, ls="none")
-        groups.append((yseed, "Oracle rule seed"))
+        groups.append((yseed, "CE-tuned rule seed"))
         bottom.set_yticks([g[0] for g in groups], [g[1] for g in groups])
         bottom.tick_params(axis="y", length=0, pad=5)
         bottom.set_ylim(-3.5, 34.5)

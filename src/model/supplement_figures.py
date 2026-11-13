@@ -189,7 +189,7 @@ def _inst_colors(runs):
 def fig_deck_curve(plt, runs, path):
     """The stored deck curve: the risk-neutral MIP at every uniform planning deck, scored under the true model. Top: its
     CE relative to z_A, with the best deck-family member (dashed), the best deck (star) and the registered primary band
-    (dotted, -5%); bottom: its E[NPV] relative to z_N, with the practice rule at its own deck (cross). Both as % of
+    (dotted, -5%); bottom: its E[NPV] relative to z_N, with the NPV-tuned rule at its own deck (cross). Both as % of
     E[NPV](rn), one column per rho, one color per instance."""
     R = [r for r in runs if r.get("methods", {}).get("rn_deck", {}).get("deck_curve") and "ce" in r["methods"] and "rn" in r["methods"]]
     if not R:
@@ -232,7 +232,7 @@ def fig_deck_curve(plt, runs, path):
     axes[1, 0].set_ylabel("$E$(deck plan) $-$ $E(\\mathbf{z}_N)$\n% of $E(\\mathbf{z}_N)$")
     handles = [Line2D([], [], color=c, marker="o", ms=3, lw=1.0, label=lab) for c, lab in colors.values()]
     handles += [Line2D([], [], color="0.3", ls="--", lw=0.8, label="best deck-family member"),
-                Line2D([], [], color="0.3", marker="*", ls="", ms=7, label="best deck (oracle)"),
+                Line2D([], [], color="0.3", marker="*", ls="", ms=7, label="best deck (CE-tuned)"),
                 Line2D([], [], color="0.3", marker="x", ls="", ms=6, mew=1.3, label="rank-and-fill rule at its deck"),
                 Line2D([], [], color="0.4", ls=":", lw=0.9, label=f"primary band ($-${BAND_PCT:g}% of $E(\\mathbf{{z}}_N)$)"),
                 Line2D([], [], color="0.55", ls="-.", lw=0.7, label="strip (deck 1)")]

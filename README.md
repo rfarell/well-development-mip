@@ -82,6 +82,12 @@ evaluation budgets needed to rerun the rest.
 The runs in the paper used 32 solver threads on one TACC Vista node (`GRB_THREADS=32 GRB_MEMLIMIT=60`).
 `python selftest.py 6 6` checks an installation in about two minutes.
 
+## Names
+
+The paper's NPV-tuned rule and CE-tuned rule are `heur_ev` and `heur_ce` in the run files, and `practice` and
+`oracle` in the rule-check files and in some stored labels. The CE-tuned deck is `rn_deck`; the practice deck is
+the 0.9 entry of its stored curve. The tilted MIP after one and two iterations is `rn_tilt1` and `rn_tilt2`.
+
 ## License
 
 MIT. See `LICENSE`.
